@@ -21,6 +21,7 @@ const App = () => {
         if (timerGoing === false && timeInput > 1 && isNaN(timeInput) === false) {
             seconds.current = timeInput
             setCustom(false)
+            setInputText("")
             setTimerGoing(true)
             countDown()
             setTimerVal("STOP")
@@ -54,6 +55,7 @@ const App = () => {
     const stopTimer = () => {
         clearInterval(interval)
         setTimerGoing(false)
+        seconds.current = 0
         setTimerVal("START")
     }
 
@@ -133,8 +135,6 @@ const App = () => {
             setCompletedCookie('completed', 0, {path: '/'})
             setTotalCookie('total', 0, {path: '/'})
         }
-
-
         return () => {
             stopTimer()
         } //eslint-disable-next-line
