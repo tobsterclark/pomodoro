@@ -1,19 +1,19 @@
 import React, {useState, useEffect, useRef} from 'react'
 import {useCookies} from 'react-cookie'
-
+import useSound from 'use-sound'
 
 const App = () => {
     const seconds = useRef(0)
     const intervalClass:any = null
     const [time, setTime] = useState("25:00")
-    const [timeInput, setTimeInput] = useState(20)
+    const [timeInput, setTimeInput] = useState(10)
     const [timerVal, setTimerVal] = useState("START")
     const [timerGoing, setTimerGoing] = useState(false)
     const [interval, setinterval] = useState(intervalClass)
     const [completedCookies, setCompletedCookie] = useCookies(['completed'])
     const [totalCookies, setTotalCookie] = useCookies(['total'])
 
-
+    const [play] = useSound("https://jamiejcole.github.io/pomodoro/ringtone.mp3", {volume: 5})
 
     //Handling the start button being pressed
     const handleStartPressed = () => {
@@ -62,6 +62,7 @@ const App = () => {
                 addCookies()
                 clearInterval(newInterval)
                 setTimerGoing(false)
+                play()
                 setTimerVal("START")
             }
         }, 1000)
