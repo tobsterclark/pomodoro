@@ -6,19 +6,21 @@ const App = () => {
     const seconds = useRef(0)
     const intervalClass:any = null
     const [time, setTime] = useState("25:00")
-    const [timeInput, setTimeInput] = useState(10)
+    const [timeInput, setTimeInput] = useState(25*60)
     const [timerVal, setTimerVal] = useState("START")
     const [timerGoing, setTimerGoing] = useState(false)
     const [interval, setinterval] = useState(intervalClass)
+    const [custom, setCustom] = useState(false)
+    const [inputText, setInputText] = useState("")
     const [completedCookies, setCompletedCookie] = useCookies(['completed'])
     const [totalCookies, setTotalCookie] = useCookies(['total'])
-
-    const [play] = useSound("https://jamiejcole.github.io/pomodoro/ringtone.mp3", {volume: 5})
+    const [play] = useSound("https://jamiejcole.github.io/pomodoro/ringtone.mp3", {volume: 1})
 
     //Handling the start button being pressed
     const handleStartPressed = () => {
-        if (timerGoing === false && timeInput !== 0) {
+        if (timerGoing === false && timeInput !== 0 && isNaN(timeInput) === false) {
             seconds.current = timeInput
+            setCustom(false)
             setTimerGoing(true)
             countDown()
             setTimerVal("STOP")
@@ -27,19 +29,30 @@ const App = () => {
         }
     }
 
+    const handleTimeChange = (evt:React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+        let buttonData = evt.currentTarget.name
+        if (seconds.current === 0 && buttonData !== 'custom') {
+            setCustom(false)
+            setTimeInput(parseInt(buttonData)*60)
+            setTime(buttonData+":00")
+        } else if (seconds.current === 0 && buttonData === 'custom') {
+            setCustom(true)
+        }
+    }
+
+    const handleCustomInput = (evt:React.ChangeEvent<HTMLInputElement>) => {
+        setInputText(evt.target.value)
+        if (evt.target.value.length < 6) {
+            setTimeInput(timeToSeconds("00:"+evt.target.value))
+        } else {
+            setTimeInput(timeToSeconds(evt.target.value))
+        }
+    }
+
     const stopTimer = () => {
         clearInterval(interval)
         setTimerGoing(false)
         setTimerVal("START")
-    }
-
-
-    const handleTimeChange = (evt:React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
-        let buttonData = evt.currentTarget.name
-        if (seconds.current === 0 && buttonData !== 'custom') {
-            setTimeInput(parseInt(buttonData)*60)
-            setTime(buttonData+":00")
-        }
     }
 
     const countDown = () => {
@@ -101,6 +114,17 @@ const App = () => {
         
     }
 
+    const timeToSeconds = (time:string) => {
+        const [hh, mm, ss] = time.split(":")
+        const formattedMM = parseInt(mm) * 60
+        const formattedHH = parseInt(hh)  * 3600
+        const formattedSS = parseInt(ss)
+
+        const seconds = String(formattedHH+formattedMM+formattedSS)
+
+        return(parseInt(seconds))
+    }
+
     // Clearing interval when component is unmounted
     useEffect(() => {
         if (completedCookies.completed === undefined || totalCookies.total === undefined) {
@@ -115,7 +139,7 @@ const App = () => {
       }, [])
 
     return (
-        <div className="h-screen w-full flex flex-col items-center justify-center bg-bgDark font-rubik gap-y-28 text-white">
+        <div className="h-screen w-screen flex flex-col items-center justify-center bg-bgDark font-rubik gap-y-24 text-white">
             <span className="text-4xl font-bold">Pomodoro!</span>
             <div className="flex flex-col items-center justify-center gap-y-10">
                 <div className="w-425 h-300 bg-default rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-y-6 pt-7">
@@ -126,17 +150,17 @@ const App = () => {
                         <button onClick={evt => handleTimeChange(evt)} name="custom" className="timerBtn">Custom</button>
                     </div>
                     <div>
-                        <span className="text-7xl font-bold">{time}</span>
-                        <input className="hidden"></input>
+                        <span className={"text-7xl font-bold " + (custom ? 'hidden' : 'block')}>{time}</span>
+                        <input className={"text-7xl font-bold text-white focus:outline-none bg-transparent w-full text-center "+(custom ? 'block' : 'hidden')} placeholder="00:00" value={inputText} name="customInput" onChange={evt => handleCustomInput(evt)} />
                     </div>
                     <div className="flex flex-col">
                         <button onClick={() => handleStartPressed()} className="bg-buttonWhite text-buttonText py-5 px-8 rounded-xl border-2 duration-150 transition-all border-buttonBorder z-10 font-bold transform hover:translate-y-2 active:translate-y-5 active:bg-default">{timerVal}</button>
                         <div className="bg-buttonBg h-14 rounded-xl border-2 border-buttonBorder z-5 transform -translate-y-10 font-bold text-buttonText"/>
                     </div>
                 </div>
-                <div className="flex flex-col gap-y-5 items-center justify-center">
-                    <span className="text-4xl font-bold">Pomodoros Completed: {completedCookies.completed}</span>
-                    <span className="text-4xl font-bold">Total Time: {secondsToTime(parseInt(totalCookies.total))}</span>
+                <div className="flex flex-col gap-y-5 items-center justify-center px-5">
+                    <span className="text-4xl font-bold text-center">Pomodoros Completed: {completedCookies.completed}</span>
+                    <span className="text-4xl font-bold text-center">Total Time: {secondsToTime(parseInt(totalCookies.total))}</span>
                 </div>
             </div>
         </div>
