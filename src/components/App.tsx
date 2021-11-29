@@ -1,119 +1,146 @@
-import React, {Component} from 'react'
+import React, {useState, useEffect, useRef} from 'react'
+import {useCookies} from 'react-cookie'
 
 
-class App extends Component {
-    state = {
-        seconds: 0,
-        time: "00:00",
-        timeInput: 10,
-        numCompleted: "2",
-        totalTime: "24",
-        timerVal: "START"
-    }
-    interval:any
+const App = () => {
+    const seconds = useRef(0)
+    const intervalClass:any = null
+    const [time, setTime] = useState("25:00")
+    const [timeInput, setTimeInput] = useState(20)
+    const [timerVal, setTimerVal] = useState("START")
+    const [timerGoing, setTimerGoing] = useState(false)
+    const [interval, setinterval] = useState(intervalClass)
+    const [completedCookies, setCompletedCookie] = useCookies(['completed'])
+    const [totalCookies, setTotalCookie] = useCookies(['total'])
 
-    handleStartPressed() {
-        if (this.interval == null) {
-            this.startTimer()
-            this.setState({
-                timerVal: "STOP"
-            })
-        } else {
-            clearInterval(this.interval)
-            this.interval = null
-            this.setState({
-                timerVal: "START"
-            })
+
+
+    //Handling the start button being pressed
+    const handleStartPressed = () => {
+        if (timerGoing === false && timeInput !== 0) {
+            seconds.current = timeInput
+            setTimerGoing(true)
+            countDown()
+            setTimerVal("STOP")
+        } else if (timerGoing === true){
+            stopTimer()
         }
     }
 
-    handleTimeChange(evt:React.MouseEvent<HTMLButtonElement, MouseEvent>) {
+    const stopTimer = () => {
+        clearInterval(interval)
+        setTimerGoing(false)
+        setTimerVal("START")
+    }
+
+
+    const handleTimeChange = (evt:React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
         let buttonData = evt.currentTarget.name
-        if (this.interval == null && buttonData !== 'custom') {
-            this.setState({
-                timeInput: [parseInt(buttonData)*60],
-                time: [buttonData,":00"]
-            })
+        if (seconds.current === 0 && buttonData !== 'custom') {
+            setTimeInput(parseInt(buttonData)*60)
+            setTime(buttonData+":00")
         }
     }
 
-    startTimer() {
-        if (this.state.timeInput !== 0) {
-            this.setState({
-                seconds:this.state.timeInput
-            }, () => {
-                this.interval = setInterval(this.countDown.bind(this), 1000)
-            })
+    const countDown = () => {
+        let nextSecond = seconds.current - 1
+        seconds.current = nextSecond
+        setTime(secondsToTime(nextSecond))
+
+        if (seconds.current === 0) {
+            addCookies()
+            stopTimer()
+            setTimerGoing(false)
+            setTimerVal("START")
         }
+        const newInterval = setInterval(() => {
+            let nextSecond = seconds.current - 1
+            seconds.current = nextSecond
+            setTime(secondsToTime(nextSecond))
+
+            if (seconds.current === 0) {
+                addCookies()
+                clearInterval(newInterval)
+                setTimerGoing(false)
+                setTimerVal("START")
+            }
+        }, 1000)
+
+        setinterval(newInterval)
     }
 
-    countDown() {
-        let seconds = this.state.seconds - 1
-
-        this.setState({
-            seconds: seconds,
-            time: [this.secondsToTime(seconds)]
-        })
-
-        if (seconds === 0) {
-            clearInterval(this.interval)
-            this.interval = null
-            this.setState({
-                timerVal: "START"
-            })
-        }
+    const addCookies = () => {
+        const totalTime = parseInt(totalCookies.total) + timeInput
+        console.log(totalTime, timeInput)
+        setCompletedCookie('completed', parseInt(completedCookies.completed)+1, {path: '/'})
+        setTotalCookie('total', totalTime)
     }
+    
 
-    secondsToTime(seconds:number) {
+    // Converting seconds to HH:MM:SS
+    const secondsToTime = (seconds:number) => {
         let hours = Math.floor(seconds / 3600);
         seconds %= 3600;
         let minutes = Math.floor(seconds / 60);
         seconds = seconds % 60;
 
-        var time = ""
+        var formattedHours:string
+        var formattedMinutes:string
+        var formattedSeconds:string
 
-        if (hours === 0) {
-            time = minutes + ":" + seconds
+        if (hours < 10) {formattedHours = "0" + hours} else {formattedHours = String(hours)}
+        if (minutes < 10) {formattedMinutes = "0" + minutes} else {formattedMinutes = String(minutes)}
+        if (seconds < 10) {formattedSeconds = "0" + seconds} else {formattedSeconds = String(seconds)}
+
+        if (hours < 1) {
+            return(formattedMinutes+":"+formattedSeconds)
         } else {
-            time = hours + ":" + minutes + ":" + seconds
+            return(formattedHours + ":" + formattedMinutes + ":" + formattedSeconds)
         }
-        return(time)
+        
     }
 
-    componentWillUnmount() {
-        clearInterval(this.interval)
-        this.interval = null
-    }
+    // Clearing interval when component is unmounted
+    useEffect(() => {
+        if (completedCookies.completed === undefined || totalCookies.total === undefined) {
+            setCompletedCookie('completed', 0, {path: '/'})
+            setTotalCookie('total', 0, {path: '/'})
+        }
 
-    render() {
-      return (
+
+        return () => {
+            stopTimer()
+        } //eslint-disable-next-line
+      }, [])
+
+    return (
         <div className="h-screen w-full flex flex-col items-center justify-center bg-bgDark font-rubik gap-y-28 text-white">
             <span className="text-4xl font-bold">Pomodoro!</span>
             <div className="flex flex-col items-center justify-center gap-y-10">
                 <div className="w-425 h-300 bg-default rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-y-6 pt-7">
                     <div className="flex gap-x-5 text-lg w-full px-7">
-                        <button onClick={evt => this.handleTimeChange(evt)} name="25" className="timerBtn">25m</button>
-                        <button onClick={evt => this.handleTimeChange(evt)} name="10" className="timerBtn">10m</button>
-                        <button onClick={evt => this.handleTimeChange(evt)} name="5" className="timerBtn">5m</button>
-                        <button onClick={evt => this.handleTimeChange(evt)} name="custom" className="timerBtn">Custom</button>
+                        <button onClick={evt => handleTimeChange(evt)} name="25" className="timerBtn">25m</button>
+                        <button onClick={evt => handleTimeChange(evt)} name="10" className="timerBtn">10m</button>
+                        <button onClick={evt => handleTimeChange(evt)} name="5" className="timerBtn">5m</button>
+                        <button onClick={evt => handleTimeChange(evt)} name="custom" className="timerBtn">Custom</button>
                     </div>
                     <div>
-                        <span className="text-7xl font-bold">{this.state.time}</span>
+                        <span className="text-7xl font-bold">{time}</span>
                         <input className="hidden"></input>
                     </div>
                     <div className="flex flex-col">
-                        <button onClick={() => this.handleStartPressed()} className="bg-buttonWhite text-buttonText py-5 px-8 rounded-xl border-2 duration-150 transition-all border-buttonBorder z-10 font-bold transform hover:translate-y-2 active:translate-y-5 active:bg-default">{this.state.timerVal}</button>
+                        <button onClick={() => handleStartPressed()} className="bg-buttonWhite text-buttonText py-5 px-8 rounded-xl border-2 duration-150 transition-all border-buttonBorder z-10 font-bold transform hover:translate-y-2 active:translate-y-5 active:bg-default">{timerVal}</button>
                         <div className="bg-buttonBg h-14 rounded-xl border-2 border-buttonBorder z-5 transform -translate-y-10 font-bold text-buttonText"/>
                     </div>
                 </div>
                 <div className="flex flex-col gap-y-5 items-center justify-center">
-                    <span className="text-4xl font-bold">Pomodoros Completed: {this.state.numCompleted}</span>
-                    <span className="text-4xl font-bold">Total Time: {this.state.totalTime}</span>
+                    <span className="text-4xl font-bold">Pomodoros Completed: {completedCookies.completed}</span>
+                    <span className="text-4xl font-bold">Total Time: {secondsToTime(parseInt(totalCookies.total))}</span>
                 </div>
             </div>
         </div>
-      )
-    }
+    )
+
 };
 
 
