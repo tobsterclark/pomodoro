@@ -18,7 +18,7 @@ const App = () => {
 
     //Handling the start button being pressed
     const handleStartPressed = () => {
-        if (timerGoing === false && timeInput !== 0 && isNaN(timeInput) === false) {
+        if (timerGoing === false && timeInput > 1 && isNaN(timeInput) === false) {
             seconds.current = timeInput
             setCustom(false)
             setTimerGoing(true)
@@ -42,7 +42,9 @@ const App = () => {
 
     const handleCustomInput = (evt:React.ChangeEvent<HTMLInputElement>) => {
         setInputText(evt.target.value)
-        if (evt.target.value.length < 6) {
+        if (evt.target.value.length < 3) {
+            setTimeInput(timeToSeconds("00:"+evt.target.value+":00"))
+        } else if (evt.target.value.length < 6){
             setTimeInput(timeToSeconds("00:"+evt.target.value))
         } else {
             setTimeInput(timeToSeconds(evt.target.value))
@@ -62,7 +64,7 @@ const App = () => {
 
         if (seconds.current === 0) {
             addCookies()
-            stopTimer()
+            stopTimer() // seconds go into negative
             setTimerGoing(false)
             setTimerVal("START")
         }
