@@ -1,174 +1,184 @@
-import React, {useState, useEffect, useRef} from 'react'
-import {useCookies} from 'react-cookie'
-import useSound from 'use-sound'
+import React, { useState, useEffect, useRef } from "react";
+import { useCookies } from "react-cookie";
+import useSound from "use-sound";
 
 const App = () => {
-    const seconds = useRef(0)
-    const intervalClass:any = null
-    const [time, setTime] = useState("25:00")
-    const [timeInput, setTimeInput] = useState(25*60)
-    const [timerVal, setTimerVal] = useState("START")
-    const [timerGoing, setTimerGoing] = useState(false)
-    const [interval, setinterval] = useState(intervalClass)
-    const [custom, setCustom] = useState(false)
-    const [inputText, setInputText] = useState("")
-    const [completedCookies, setCompletedCookie] = useCookies(['completed'])
-    const [totalCookies, setTotalCookie] = useCookies(['total'])
-    const [play] = useSound("https://jamiejcole.github.io/pomodoro/ringtone.mp3", {volume: 1})
+	// Seconds left for internal use and display
+	const seconds = useRef<number>(1500);
+	const [display, setDisplay] = useState<string>("25:00");
 
-    //Handling the start button being pressed
-    const handleStartPressed = () => {
-        if (timerGoing === false && timeInput > 1 && isNaN(timeInput) === false) {
-            seconds.current = timeInput
-            setCustom(false)
-            setInputText("")
-            setTimerGoing(true)
-            countDown()
-            setTimerVal("STOP")
-        } else if (timerGoing === true){
-            stopTimer()
-        }
-    }
+	// Checking if the timer is active
+	const [timerGoing, setTimerGoing] = useState<boolean>(false);
+	// The intervalID; used to clear the timer
+	const [intervalID, setIntervalID] = useState<any>();
+	// Used to check whether to use custom input or not
+	const [custom, setCustom] = useState(false);
+	// Custom input manager
+	const [inputText, setInputText] = useState("");
 
-    const handleTimeChange = (evt:React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
-        let buttonData = evt.currentTarget.name
-        if (seconds.current === 0 && buttonData !== 'custom') {
-            setCustom(false)
-            setTimeInput(parseInt(buttonData)*60)
-            setTime(buttonData+":00")
-        } else if (seconds.current === 0 && buttonData === 'custom') {
-            setCustom(true)
-        }
-    }
+	// Cookies
+	const [completedCookies, setCompletedCookie] = useCookies(["completed"]);
+	const [totalCookies, setTotalCookie] = useCookies(["total"]);
 
-    const handleCustomInput = (evt:React.ChangeEvent<HTMLInputElement>) => {
-        setInputText(evt.target.value)
-        if (evt.target.value.length < 3) {
-            setTimeInput(timeToSeconds("00:"+evt.target.value+":00"))
-        } else if (evt.target.value.length < 6){
-            setTimeInput(timeToSeconds("00:"+evt.target.value))
-        } else {
-            setTimeInput(timeToSeconds(evt.target.value))
-        }
-    }
+	// Ringtone that is played on timer finish
+	const [play] = useSound("https://jamiejcole.github.io/pomodoro/ringtone.mp3", { volume: 1 });
 
-    const stopTimer = () => {
-        clearInterval(interval)
-        setTimerGoing(false)
-        seconds.current = 0
-        setTimerVal("START")
-    }
+	// Handling the start button being pressed
+	const handleStartPressed = () => {
+		if (timerGoing === false && seconds.current > 1) {
+			setCustom(false);
+			setInputText("");
+			setTimerGoing(true);
+			countDown();
+		} else if (timerGoing === true) {
+			stopTimer();
+		}
+	};
 
-    const countDown = () => {
-        let nextSecond = seconds.current - 1
-        seconds.current = nextSecond
-        setTime(secondsToTime(nextSecond))
+	// Handles different times being chosen (25, 10, 5, custom)
+	const handleTimeChange = (evt: React.MouseEvent<HTMLButtonElement, MouseEvent>) => {
+		let buttonData = evt.currentTarget.name;
+		if (!timerGoing) {
+			buttonData === "custom" ? setCustom(true) : setCustom(false);
+			updateSeconds(parseInt(buttonData) * 60);
+		}
+	};
 
-        if (seconds.current === 0) {
-            addCookies()
-            stopTimer() // seconds go into negative
-            setTimerGoing(false)
-            setTimerVal("START")
-        }
-        const newInterval = setInterval(() => {
-            let nextSecond = seconds.current - 1
-            seconds.current = nextSecond
-            setTime(secondsToTime(nextSecond))
+	// Handles custom time input, custom time can be in MM, MM:SS, or HH:MM:SS
+	const handleCustomInput = (evt: React.ChangeEvent<HTMLInputElement>) => {
+		setInputText(evt.target.value);
+		if (evt.target.value.length < 3) {
+			updateSeconds(timeToSeconds("00:" + evt.target.value + ":00"));
+		} else if (evt.target.value.length < 6) {
+			updateSeconds(timeToSeconds("00:" + evt.target.value));
+		} else {
+			updateSeconds(timeToSeconds(evt.target.value));
+		}
+	};
 
-            if (seconds.current === 0) {
-                addCookies()
-                clearInterval(newInterval)
-                setTimerGoing(false)
-                play()
-                setTimerVal("START")
-            }
-        }, 1000)
+	// Handles the actual countdown with an interval
+	const countDown = () => {
+		// Records total time for cookies
+		const totalTime = seconds.current;
 
-        setinterval(newInterval)
-    }
+		const newInterval = setInterval(() => {
+			updateSeconds(seconds.current - 1);
 
-    const addCookies = () => {
-        const totalTime = parseInt(totalCookies.total) + timeInput
-        console.log(totalTime, timeInput)
-        setCompletedCookie('completed', parseInt(completedCookies.completed)+1, {path: '/'})
-        setTotalCookie('total', totalTime)
-    }
-    
+			// When timer finishes cleanup interval, play noise, and add cookies
+			if (seconds.current === 0) {
+				addCookies(totalTime);
+				stopTimer();
+				play();
+			}
+		}, 1000);
 
-    // Converting seconds to HH:MM:SS
-    const secondsToTime = (seconds:number) => {
-        let hours = Math.floor(seconds / 3600);
-        seconds %= 3600;
-        let minutes = Math.floor(seconds / 60);
-        seconds = seconds % 60;
+		setIntervalID(newInterval);
+	};
 
-        var formattedHours:string
-        var formattedMinutes:string
-        var formattedSeconds:string
+	// Cleans up the interval timer
+	const stopTimer = () => {
+		clearInterval(intervalID);
+		setTimerGoing(false);
+	};
 
-        if (hours < 10) {formattedHours = "0" + hours} else {formattedHours = String(hours)}
-        if (minutes < 10) {formattedMinutes = "0" + minutes} else {formattedMinutes = String(minutes)}
-        if (seconds < 10) {formattedSeconds = "0" + seconds} else {formattedSeconds = String(seconds)}
+	// Adding the cookies which record total pomodoros and total time
+	const addCookies = (total: number) => {
+		const totalTime = parseInt(totalCookies.total) + total;
+		setCompletedCookie("completed", parseInt(completedCookies.completed) + 1, { path: "/" });
+		setTotalCookie("total", totalTime);
+	};
 
-        if (hours < 1) {
-            return(formattedMinutes+":"+formattedSeconds)
-        } else {
-            return(formattedHours + ":" + formattedMinutes + ":" + formattedSeconds)
-        }
-        
-    }
+	// updates the seconds ref and updates display state (so page rerenders)
+	const updateSeconds = (newSeconds: number) => {
+		seconds.current = newSeconds;
+		setDisplay(secondsToTime(newSeconds));
+	};
 
-    const timeToSeconds = (time:string) => {
-        const [hh, mm, ss] = time.split(":")
-        const formattedMM = parseInt(mm) * 60
-        const formattedHH = parseInt(hh)  * 3600
-        const formattedSS = parseInt(ss)
+	// Converting seconds to HH:MM:SS
+	const secondsToTime = (seconds: number) => {
+		let hours: number = Math.floor(seconds / 3600);
+		seconds %= 3600;
+		let minutes: number = Math.floor(seconds / 60);
+		seconds %= 60;
 
-        const seconds = String(formattedHH+formattedMM+formattedSS)
+		var formattedHours: string;
+		var formattedMinutes: string;
+		var formattedSeconds: string;
 
-        return(parseInt(seconds))
-    }
+		hours < 10 ? (formattedHours = "0" + hours) : (formattedHours = String(hours));
+		minutes < 10 ? (formattedMinutes = "0" + minutes) : (formattedMinutes = String(minutes));
+		seconds < 10 ? (formattedSeconds = "0" + seconds) : (formattedSeconds = String(seconds));
 
-    // Clearing interval when component is unmounted
-    useEffect(() => {
-        if (completedCookies.completed === undefined || totalCookies.total === undefined) {
-            setCompletedCookie('completed', 0, {path: '/'})
-            setTotalCookie('total', 0, {path: '/'})
-        }
-        return () => {
-            stopTimer()
-        } //eslint-disable-next-line
-      }, [])
+		var output: string;
+		hours < 1 ? (output = formattedMinutes + ":" + formattedSeconds) : (output = formattedHours + ":" + formattedMinutes + ":" + formattedSeconds);
+		return output;
+	};
 
-    return (
-        <div className="h-screen w-screen flex flex-col items-center justify-center bg-bgDark font-rubik gap-y-24 text-white">
-            <span className="text-4xl font-bold">Pomodoro!</span>
-            <div className="flex flex-col items-center justify-center gap-y-10">
-                <div className="w-425 h-300 bg-default rounded-2xl shadow-2xl flex flex-col items-center justify-center gap-y-6 pt-7">
-                    <div className="flex gap-x-5 text-lg w-full px-7">
-                        <button onClick={evt => handleTimeChange(evt)} name="25" className="timerBtn">25m</button>
-                        <button onClick={evt => handleTimeChange(evt)} name="10" className="timerBtn">10m</button>
-                        <button onClick={evt => handleTimeChange(evt)} name="5" className="timerBtn">5m</button>
-                        <button onClick={evt => handleTimeChange(evt)} name="custom" className="timerBtn">Custom</button>
-                    </div>
-                    <div>
-                        <span className={"text-7xl font-bold " + (custom ? 'hidden' : 'block')}>{time}</span>
-                        <input className={"text-7xl font-bold text-white focus:outline-none bg-transparent w-full text-center "+(custom ? 'block' : 'hidden')} placeholder="00:00" value={inputText} name="customInput" onChange={evt => handleCustomInput(evt)} />
-                    </div>
-                    <div className="flex flex-col">
-                        <button onClick={() => handleStartPressed()} className="bg-buttonWhite text-buttonText py-5 px-8 rounded-xl border-2 duration-150 transition-all border-buttonBorder z-10 font-bold transform hover:translate-y-2 active:translate-y-5 active:bg-default">{timerVal}</button>
-                        <div className="bg-buttonBg h-14 rounded-xl border-2 border-buttonBorder z-5 transform -translate-y-10 font-bold text-buttonText"/>
-                    </div>
-                </div>
-                <div className="flex flex-col gap-y-5 items-center justify-center px-5">
-                    <span className="text-4xl font-bold text-center">Pomodoros Completed: {completedCookies.completed}</span>
-                    <span className="text-4xl font-bold text-center">Total Time: {secondsToTime(parseInt(totalCookies.total))}</span>
-                </div>
-            </div>
-        </div>
-    )
+	// Convert HH:MM:SS to seconds
+	const timeToSeconds = (time: string) => {
+		const [hh, mm, ss] = time.split(":");
 
+		const seconds = parseInt(mm) * 60 + parseInt(hh) * 3600 + parseInt(ss);
+		return seconds;
+	};
+
+	// Clearing interval when component is unmounted
+	useEffect(() => {
+		if (completedCookies.completed === undefined || totalCookies.total === undefined) {
+			setCompletedCookie("completed", 0, { path: "/" });
+			setTotalCookie("total", 0, { path: "/" });
+		}
+		return () => {
+			stopTimer();
+		}; //eslint-disable-next-line
+	}, []);
+
+	return (
+		<div className="h-screen w-screen flex flex-col items-center justify-between bg-bgDark font-rubik text-white">
+			<span className="text-4xl font-bold flex text-center items-end h-1/5">Pomodoro!</span>
+			<div className="flex flex-col items-center justify-center gap-y-10 w-full h-4/5">
+				<div className="bg-default rounded-2xl shadow-2xl flex flex-col w-full max-w-md items-center justify-center gap-y-6 pt-7">
+					<div className="flex gap-x-1 md:gap-x-5 text-lg w-full px-1 md:px-7">
+						<button onClick={(evt) => handleTimeChange(evt)} name="25" className="timerBtn">
+							25m
+						</button>
+						<button onClick={(evt) => handleTimeChange(evt)} name="10" className="timerBtn">
+							10m
+						</button>
+						<button onClick={(evt) => handleTimeChange(evt)} name="5" className="timerBtn">
+							5m
+						</button>
+						<button onClick={(evt) => handleTimeChange(evt)} name="custom" className="timerBtn">
+							Custom
+						</button>
+					</div>
+					<div className="h-1/3 flex-none">
+						<span className={"text-7xl font-bold h-full " + (custom ? "hidden" : "block")}>{display}</span>
+						<input
+							className={"text-7xl font-bold text-white h-full focus:outline-none bg-transparent w-full text-center " + (custom ? "block" : "hidden")}
+							placeholder="00:00"
+							value={inputText}
+							name="customInput"
+							onChange={(evt) => handleCustomInput(evt)}
+						/>
+					</div>
+					<div className="flex flex-col">
+						<button
+							onClick={() => handleStartPressed()}
+							className="bg-buttonWhite text-buttonText py-5 px-8 rounded-xl border-2 duration-150 transition-all border-buttonBorder z-10 font-bold transform hover:translate-y-2 active:translate-y-5 active:bg-default"
+						>
+							{timerGoing ? "STOP" : "START"}
+						</button>
+						<div className="bg-buttonBg h-14 rounded-xl border-2 border-buttonBorder z-5 transform -translate-y-10 font-bold text-buttonText" />
+					</div>
+				</div>
+				<div className="md:flex flex-col gap-y-5 items-center justify-center px-5 hidden">
+					<span className="text-4xl font-bold text-center">Pomodoros Completed: {completedCookies.completed}</span>
+					<span className="text-4xl font-bold text-center">Total Time: {secondsToTime(parseInt(totalCookies.total))}</span>
+				</div>
+			</div>
+		</div>
+	);
 };
-
 
 export default App;

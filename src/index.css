@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-
 .timerBtn {
-    @apply bg-dark rounded-md font-bold shadow-lg px-2 py-2 flex-1 transition duration-200 hover:bg-timerBg active:bg-default border-2 border-dark;
+	@apply bg-dark rounded-md font-bold shadow-lg md:px-2 py-2 flex-1 transition duration-200 hover:bg-timerBg active:bg-default border-2 border-dark;
 }
